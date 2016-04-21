@@ -48,7 +48,6 @@ class FilecommonGetter(object):
             with open(os.path.join(os.sep, self.src_path, '{}.{}'.format(file, self.extension)), 'rb') as data_file:
                 if file == 'ratings':
                     setattr(self, file, [line[:-1] for line in data_file])
-                    # setattr(self, file, getattr(self, file)[:100000])
                 else:
                     setattr(self, file, [line[:-1] for line in data_file])
 

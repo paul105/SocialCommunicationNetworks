@@ -25,6 +25,9 @@ class FilecommonGetter(object):
             if 'genres' in kwargs:
                 for genres_types in kwargs['genres'][row_number]:
                     tmp_list += "{};".format(genres_types)
+            if 'friends' in kwargs:
+                for friend in kwargs['friends'][args[0][row_number]]:
+                    tmp_list += "{};".format(friend)
             output_data.append(tmp_list)
         return output_data
 

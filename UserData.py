@@ -1,6 +1,7 @@
 from FileCommonGetter import FilecommonGetter
 import re
-import numpy as np
+import os
+import random
 
 class UserData(FilecommonGetter):
     def __init__(self, src_path, dst_path):
@@ -11,6 +12,7 @@ class UserData(FilecommonGetter):
         self.age = []
         self.occupation = []
         self.zip_code = []
+        self.friends = {}
 
 ################# user api #####################################################
     def prepare_user_data(self, separator='::'):
@@ -21,8 +23,10 @@ class UserData(FilecommonGetter):
         self.change_letter_to_number_in_sex_field()
         self.unify_zip_codes()
         self.normalize_necessary_vectors()
-        # self.output = self.prepare_output_to_save_to_file(self.user_id, self.gender, self.age, self.occupation, self.zip_code)
-        # self.save_to_file(self.output, self.file_name)
+        self.calculate_70per_cent_proximity()
+        self.output = self.prepare_output_to_save_to_file(self.user_id, self.gender, self.age, self.occupation,
+                                                          self.zip_code, friends=self.friends)
+        self.save_to_file(self.output, self.file_name)
 
 ############### private api #####################################################
 
@@ -53,50 +57,67 @@ class UserData(FilecommonGetter):
 
     def unify_zip_codes(self):
         for index, zip_code in enumerate(self.zip_code):
+            zip_code = zip_code.replace('-', '')
             try:
-                self.zip_code[index] = int(zip_code)
+                self.zip_code[index] = int(zip_code[:6])
             except ValueError:
-                self.zip_code[index] = int(zip_code.replace("-", ""))
+                self.zip_code[index] = int(zip_code)
+            self.friends[self.user_id[index]] = []
 
-    def create_friends(self):
-        # zip_codes = []
-        # for zip_code in self.zip_code:
-        #     zip_codes.append(zip_code)
-            # print zip_code
-        # mean = sum(self.zip_code)/len(self.zip_code)
-        # _min = min(self.zip_code)
-        # _max = max(self.zip_code)
-        # print _max - _min
-        # print _max - mean
-        # print len(self.zip_code)
-        zip_zero = self.zip_code[0]
+
+    def _create_friends_list(self, seventy_per_cent, index):
+        people_farway = []
+        people_nearby = []
+        try:
+            for u_index, _zip_code in enumerate(self.zip_code):
+                if index == u_index:
+                    continue
+                if abs(_zip_code-self.zip_code[index]) < seventy_per_cent:
+                    people_nearby.append(self.user_id[u_index])
+                else:
+                    people_farway.append(self.user_id[u_index])
+            friends = random.sample(people_nearby, 35) + random.sample(people_farway, 15)
+        except ValueError as err:
+            raise ValueError("Cos poszlo nie tak, nie mam znajomych? :( {}, {}, {} \n {}".format(index,
+                                                                                                 self.zip_code[index],
+                                                                                                 seventy_per_cent, err))
+        for friend in friends:
+            if len(self.friends[friend]) < 50 \
+                    and self.user_id[index] not in self.friends[friend] \
+                    and len(self.friends[self.user_id[index]]) < 50:
+                self.friends[self.user_id[index]].append(friend)
+                self.friends[friend].append(self.user_id[index])
+
+    def calculate_70per_cent_proximity(self):
         seventy_percent = len(self.zip_code)*0.7
-        print "70\% = ", seventy_percent
-        # i=0
-        k = []
-        for zz in self.zip_code:
-            # print self.zip_code.index(zz)
-            for j in xrange(20000,121000,5000):
+        diffs = []
+        for index1, zz in enumerate(self.zip_code):
+            for j in xrange(30000, 9900000, 3000):
                 i = 0
                 for index,zip_code in enumerate(self.zip_code):
                     if abs(zip_code - zz) < j:
                         i += 1
                 if i > seventy_percent:
-                    # print "udalo sie!"
-                    # print "i = ", i
-                    # print "j = ", j
-                    k.append(j)
+                    diffs.append(j)
                     break
-            # else:
-            #     print i
-                # print "aktualnie j = ", j
-
-        print len(k)
-        print sum(k)/len(k)
+        if len(diffs) != 6040:
+            raise Exception("Nie okreslono roznicy zip-code dla kogos. k = {}".format(len(diffs)))
+        for index, zz in enumerate(self.zip_code):
+            self._create_friends_list(diffs[index], index)
 
 
 
 if __name__ == '__main__':
-    userdata = UserData("D:\PycharmProjects\SocialCommunicationNetworks\ml-1m", 'D:\PycharmProjects\SocialCommunicationNetworks\ml-1m\output')
+    root_path = 'C:\Users\p\Documents'
+    input_files_path = os.path.join(root_path, 'PycharmProjects\SocialCommunicationNetworks\ml-1m')
+    output_files_path = os.path.join(root_path, 'PycharmProjects\SocialCommunicationNetworks\ml-1m\output')
+    userdata = UserData(input_files_path, output_files_path)
     userdata.prepare_user_data()
-    userdata.create_friends()
+    userdata.calculate_70per_cent_proximity()
+    k=0
+    for friend in userdata.friends.keys():
+        k += len(set(userdata.friends[friend]))
+        print len(set(userdata.friends[friend]))
+    print k
+    print len(userdata.friends)
+    print k/6040.0
